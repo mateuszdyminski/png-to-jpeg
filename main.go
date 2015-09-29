@@ -2,74 +2,33 @@ package main
 
 import (
 	"fmt"
-	"image/jpeg"
-	"image/png"
-	"io"
-	"log"
 	"os"
-	"path"
-	"path/filepath"
 	"strconv"
-	"strings"
+
+	"github.com/mateuszdyminski/png2jpeg/png2jpeg"
 )
 
 // DefaultQuality default quality use for transformation.
 const DefaultQuality = 75
 
 func main() {
-	// open file which should be converted.
-	file, err := os.Open(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// get path of current directory.
-	currentDir, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	stat, err := file.Stat()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(os.Args) < 2 {
-		log.Fatalf("Please provide png file")
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, fmt.Errorf("Please provide params as png2jpeg <PNG_IMAGE> <NEW_NAME_OF_JPEG> <OPTIONAL-QUALITY>"))
+		return
 	}
 
 	// set quality if provided in args.
 	quality := DefaultQuality
-	if len(os.Args) > 2 {
-		quality, err = strconv.Atoi(os.Args[2])
+	var err error
+	if len(os.Args) > 3 {
+		quality, err = strconv.Atoi(os.Args[3])
 		if err != nil {
-			log.Fatalf("Quality level should be an integer")
+			fmt.Fprintln(os.Stderr, fmt.Errorf("Quality level should be an integer"))
+			return
 		}
 	}
 
-	fmt.Printf("Processing image: %v \n", path.Join(currentDir, "new_"+stat.Name()))
-
-	// open new file.
-	newFileName := "new_" + strings.TrimSuffix(stat.Name(), filepath.Ext(stat.Name())) + ".jpg"
-	jpg, err := os.OpenFile(path.Join(currentDir, newFileName), os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		log.Fatal(err)
+	if err = png2jpeg.Convert(os.Args[1], os.Args[2], quality); err != nil {
+		fmt.Fprintf(os.Stderr, "Can't convert photo! Err: %v \n", err)
 	}
-
-	convertPNGToJPEG(jpg, file, quality)
-
-	fmt.Printf("Image: %v Converted!\n", newFileName)
-
-	// close files
-	file.Close()
-	jpg.Close()
 }
-
-func convertPNGToJPEG(w io.Writer, r io.Reader, quality int) error {
-	img, err := png.Decode(r)
-	if err != nil {
-		return err
-	}
-	return jpeg.Encode(w, img, &jpeg.Options{Quality: quality})
-}
-
